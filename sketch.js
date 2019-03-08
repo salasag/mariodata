@@ -60,7 +60,7 @@ function generatePlatform(){
     if(counter%(60*1/60)==0){
         console.log(STOCK_DATA.rows.length)
         let size = 50
-        let height = STOCK_DATA.rows[CSV_INDEX].obj.Open*15;
+        let height = STOCK_DATA.rows[CSV_INDEX].obj.Open*10;
 
         // if(CSV_INDEX == 0){
         //     height = 0
