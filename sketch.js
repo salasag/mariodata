@@ -4,33 +4,69 @@ var CANVAS_HEIGHT = 800;
 var CANVAS_WIDTH  = 1600;
 let FPS = 60;
 let objects = [];
+let clouds = [];
 let isMousePreviouslyPressed = false;
 let STOCK_DATA;
 let MARIO_STANDING_IMAGE;
 let MARIO_JUMPING_IMAGE;
+let MARIO_STANDING_INVERTED_IMAGE;
+let MARIO_JUMPING_INVERTED_IMAGE;
 let counter = 0;
 let MARIO_OBJECT;
 let CSV_INDEX = 0;
 let TRANSLATION=0;
+let SCENE_MANAGER;
+let CSV_STEP = 10;
+let points = 100;
+let MAX_VALUE = 0;
+let FONT;
 
 function setup(){
     CANVAS_HEIGHT = windowHeight;
     CANVAS_WIDTH  = windowWidth;
     cnv = createCanvas(CANVAS_WIDTH,CANVAS_HEIGHT);
+    // SCENE_MANAGER = new SCENE_MANAGER();
+    // SCENE_MANAGER.addScene( Animation1 )
+    // SCENE_MANAGER.showNextScene();
     frameRate(FPS);
     textAlign(CENTER, CENTER);
-    textSize(40)
-    background(255);
+    textSize(30)
+    textFont(FONT)
+    background(120,124,249);
     setupObjects();
     cursor(CROSS)
-
     fill(0);
     console.log(STOCK_DATA)
+    // let money = 100;
+    // for(let i = 10; i< STOCK_DATA.rows.length; i=i+10){
+    //     let percentIncrease = (STOCK_DATA.rows[i].obj.Open/STOCK_DATA.rows[Math.max(i-CSV_STEP,0)].obj.Open)
+    //     money = Math.max(percentIncrease*money,money/percentIncrease)
+    // }
+    // console.log(Math.pow(money,1/560))
+    // console.log(money)
 }
 
+// function Animation1(){
+
+//     this.enter = function(){
+//         // frameCount is a thing
+//     }
+
+//     this.draw = function(){
+
+//     }
+
+//     this.mousePressed = function(){
+//         this.sceneManager.showNextScene()
+//     }
+// }
+
 function keyPressed() {
-    if (keyCode === UP_ARROW) {
+    if (keyCode === UP_ARROW && Math.abs(MARIO_OBJECT.yVelocity) < 2 && !MARIO_OBJECT.isJumping) {
         MARIO_OBJECT.jump()
+    }
+    if(keyCode == 32){
+        MARIO_OBJECT.invertGravity()
     }
 }
 
@@ -38,8 +74,15 @@ function preload(){
     STOCK_DATA = loadTable("data/NTDOY.csv","header")
     MARIO_STANDING_IMAGE = loadImage("images/mario_standing.png")
     MARIO_JUMPING_IMAGE = loadImage("images/mario_jumping.png")
+    MARIO_STANDING_INVERTED_IMAGE = loadImage("images/mario_standing_inverted.png")
+    MARIO_JUMPING_INVERTED_IMAGE = loadImage("images/mario_jumping_inverted.png")
     BRICK_IMAGE = loadImage("images/brick.png")
-    LOGO_IMAGE = loadImage("images/nintendo_logo.jpg")
+    PIPE_IMAGE = loadImage("images/pipe.png")
+    CLOUD_SMALL_IMAGE = loadImage("images/cloud_small.png")
+    CLOUD_LARGE_IMAGE = loadImage("images/cloud_large.png")
+    SUN_IMAGE = loadImage("images/sun.png")
+    LOGO_IMAGE = loadImage("images/nintendo_logo.png")
+    FONT = loadFont("fonts/emulogic.ttf")
 }
 
 function setupObjects(){
@@ -47,57 +90,131 @@ function setupObjects(){
 }
 
 function draw(){
-    background(255);
-    handleInput();
-    handleCollisions();
-    generatePlatform();
+    background(120,124,249);
+    generateObjects();
     drawObjects();
+    handleCollisions();
+    handleInput();
     handleCounter();
     isMousePreviouslyPressed = mouseIsPressed;
 }
 
-function generatePlatform(){
-    if(counter%(60*1/60)==0){
-        console.log(STOCK_DATA.rows.length)
+/**
+ * This handles object generation such as the clouds and the platforms
+ */
+function generateObjects(){
+    if(counter%(600*5*1/60)==0){
         let size = 50
-        let height = STOCK_DATA.rows[CSV_INDEX].obj.Open*10;
-
-        // if(CSV_INDEX == 0){
-        //     height = 0
-        // }
-
-        objects.push(new PlatformObject(CANVAS_WIDTH,CANVAS_HEIGHT-size-height,-5,0,size,size,1))
-
-
-
-        console.log(CSV_INDEX)
+        let height = (CANVAS_HEIGHT-size)/2;
+        if(Math.abs(TRANSLATION)>4){
+            console.log("Zero?",TRANSLATION)
+        }
+        if(CSV_INDEX != 0){
+            let percentIncrease = (STOCK_DATA.rows[CSV_INDEX].obj.Open/STOCK_DATA.rows[Math.max(CSV_INDEX-CSV_STEP,0)].obj.Open)-1
+            let addedTranslation = Math.min((percentIncrease)*800,320);
+            TRANSLATION += addedTranslation
+            points *= Math.sign(MARIO_OBJECT.yAcceleration)==1?1+percentIncrease:1/(1+percentIncrease)
+        }
+        else{
+            MARIO_OBJECT.xPosition = CANVAS_WIDTH
+            MARIO_OBJECT.yPosition = CANVAS_HEIGHT-size-height-MARIO_OBJECT.height
+        }
+        objects.push(new PlatformObject(CANVAS_WIDTH,CANVAS_HEIGHT-size-height,-5,0,size,size,3,Math.random()<.2))
         incrementCSVIndex();
+    }
+    let translationIncrement = Math.max(.1*Math.abs(TRANSLATION),4)
+    if(TRANSLATION < -translationIncrement){
+        translationIncrement *= -1;
+    }
+    else if(Math.abs(TRANSLATION) < translationIncrement){
+        translationIncrement = 0;
+    }
+    for(let i = 0; i < objects.length-1; i++){
+        objects[i].yPosition+=translationIncrement;
+    }
+    MARIO_OBJECT.yPosition+=translationIncrement;
+    TRANSLATION-=translationIncrement;
+    if(counter%(60*2*1/60)==0){
+        let rand = Math.random()
+        let threshold = .03
+        if(rand < threshold){
+            clouds.push(new CloudObject(CANVAS_WIDTH,Math.random()*CANVAS_HEIGHT/2,-4,0,50,50,rand<threshold/2))
+        }
     }
 }
 
+/**
+ * This draws objects on the screen and updates movement
+ */
 function drawObjects(){
+    image(SUN_IMAGE,CANVAS_WIDTH*3/4,CANVAS_HEIGHT/10,SUN_IMAGE.width,SUN_IMAGE.height);
+    clouds.map((currentObject)=>{
+        currentObject.move();
+        currentObject.draw();
+    })
+    if(clouds[0] && clouds[0].xPosition==0){
+        clouds.splice(0,1)
+    }
     image(LOGO_IMAGE,0,0,LOGO_IMAGE.width/2,LOGO_IMAGE.height/2);
-    fill(100);
-    text("Date: "+STOCK_DATA.rows[CSV_INDEX].obj.Date, LOGO_IMAGE.width/4, LOGO_IMAGE.height/2);
-    fill(100);
-    text("Price: "+STOCK_DATA.rows[CSV_INDEX].obj.Open, LOGO_IMAGE.width/4, LOGO_IMAGE.height/2+50);
+    fill(200);
+    text("Date: "+STOCK_DATA.rows[CSV_INDEX].obj.Date, CANVAS_WIDTH/2, CANVAS_HEIGHT*3/4);
+    fill(200);
+    text("Price: $"+parseFloat(STOCK_DATA.rows[CSV_INDEX].obj.Open).toFixed(4), CANVAS_WIDTH/2, CANVAS_HEIGHT*3/4+50);
+    fill(200);
+    text("Money: $"+points.toFixed(2), CANVAS_WIDTH/2, CANVAS_HEIGHT*3/4+100);
     objects.map(currentObject => {
         currentObject.move();
         currentObject.draw();
     });
-    if(objects[0].xPosition==0){
+    if(objects[0].xPosition==0-50*3){
         objects.splice(0,1)
     }
     MARIO_OBJECT.draw()
     MARIO_OBJECT.update()
 }
 
+/**
+ * This ensures that Mario can't fall through the screen
+ */
 function handleCollisions(){
-    objects.map(obj1 => {
+    let toDestroy = []
+    objects.map((obj1,index) => {
+        if(isCollisionRectangle(MARIO_OBJECT.xPosition, MARIO_OBJECT.width, MARIO_OBJECT.yPosition, MARIO_OBJECT.height,
+                                obj1.xPosition,         obj1.width,         obj1.yPosition,         obj1.height)){
+            switch(Math.min(MARIO_OBJECT.xPosition+MARIO_OBJECT.width -obj1.xPosition,obj1.xPosition+obj1.width -MARIO_OBJECT.xPosition,
+                            MARIO_OBJECT.yPosition+MARIO_OBJECT.height-obj1.yPosition,obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition)){
+                case MARIO_OBJECT.xPosition+MARIO_OBJECT.width-obj1.xPosition:{
+                    MARIO_OBJECT.xPosition=obj1.xPosition-MARIO_OBJECT.width;
+                    break;
+                }
+                case obj1.xPosition+obj1.width -MARIO_OBJECT.xPosition:{
+                    MARIO_OBJECT.xPosition=obj1.xPosition+obj1.width;
+                    break;
+                }
+                case MARIO_OBJECT.yPosition+MARIO_OBJECT.height-obj1.yPosition:{
+                    MARIO_OBJECT.yPosition=obj1.yPosition-MARIO_OBJECT.height;
+                    MARIO_OBJECT.yVelocity=0
+                    MARIO_OBJECT.isJumping=false;
+                    break;
+                }
+                case obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition:{
+                    MARIO_OBJECT.yPosition=obj1.yPosition+obj1.height;
+                    MARIO_OBJECT.yVelocity=0
+                    MARIO_OBJECT.isJumping=false;
+                    break;
+                }
+                default:{
 
+                }
+            }
+        }
     });
 }
 
+/**
+ * This is a global counter that I use to represent time
+ * I think this already has an equivalent in p5js but oh well
+ */
 function handleCounter(){
     counter++;
     if(counter > 1000000000){
@@ -105,6 +222,9 @@ function handleCounter(){
     }
 }
 
+/**
+ * This handles the movement for Mario (except for jumping)
+ */
 function handleInput(){
     if (keyIsDown(LEFT_ARROW)) {
         MARIO_OBJECT.move(-1)
@@ -115,23 +235,56 @@ function handleInput(){
     }
 }
 
+/**
+ * This increments the CSV index by a step so the correct platform is generated
+ */
 function incrementCSVIndex(){
-    CSV_INDEX = (CSV_INDEX+1)%(STOCK_DATA.rows.length)
+    CSV_INDEX = (CSV_INDEX+CSV_STEP)%(STOCK_DATA.rows.length)
 }
 
+/**
+ * Checks if rectangles have collided
+ * @param {x Position of the first rectangle} x1 
+ * @param {width of the first rectangle} width1 
+ * @param {y Position of the first rectangle} y1 
+ * @param {height of the first rectangle} height1 
+ * @param {x Position of the second rectangle} x2 
+ * @param {width of the second rectangle} width2 
+ * @param {y Position of the second rectangle} y2 
+ * @param {height of the second rectangle} height2 
+ */
 function isCollisionRectangle(x1,width1,y1,height1,x2,width2,y2,height2){
     return x1 < (x2+width2) && (x1+width1) > x2 &&
            y1 < (y2+height2) && (y1+height1) > y2;
 }
 
+/**
+ * Checks if circles have collided
+ * @param {width  of the first circle} width1 
+ * @param {height of the first circle} height1
+ * @param {radius of the first circle} y1  
+ * @param {width  of the second circle} width2 
+ * @param {height of the second circle} height2
+ * @param {radius of the second circle} y2  
+ */
 function isCollisionCircle(x1,y1,r1,x2,y2,r2){
     return distance(x1,y1,x2,y2) < r1+r2;
 }
 
+/**
+ * Returns the distance between two points
+ * @param {x Position of the first point} x1 
+ * @param {y Position of the first point} y1 
+ * @param {x Position of the second point} x2 
+ * @param {y Position of the second point} y2 
+ */
 function distance(x1,y1,x2,y2){
     return sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
 }
 
+/**
+ * Generalized class to display an image and have movement with acceleration
+ */
 class PhysicsObject{
 
     constructor(initXPosition,initYPosition,initXVelocity,initYVelocity,initXAcceleration,initYAcceleration,initWidth,initHeight,type){
@@ -180,18 +333,19 @@ class PhysicsObject{
     }
 }
 
+/**
+ * Class for background clouds
+ */
+class CloudObject{
 
-
-class PlatformObject{
-
-    constructor(initXPosition,initYPosition,initXVelocity,initYVelocity,initWidth,initHeight,initLength){
+    constructor(initXPosition,initYPosition,initXVelocity,initYVelocity,initWidth,initHeight,isLarge){
         this.xPosition = initXPosition;
         this.yPosition = initYPosition;
         this.xVelocity = initXVelocity;
         this.yVelocity = initYVelocity;
         this.width = initWidth;
-        this.height = initHeight;
-        this.length = initLength
+        this.height = initHeight
+        this.isLarge = isLarge
     }
 
     move(){
@@ -212,8 +366,61 @@ class PlatformObject{
     }
 
     draw(){
+        if(this.isLarge){
+            image(CLOUD_LARGE_IMAGE,this.xPosition,this.yPosition,this.width*2,this.height);
+        }
+        else{
+            image(CLOUD_SMALL_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+
+        }
+    }
+}
+
+/**
+ * Class for platform objects
+ */
+class PlatformObject{
+
+    constructor(initXPosition,initYPosition,initXVelocity,initYVelocity,initWidth,initHeight,initLength,hasPipe){
+        this.xPosition = initXPosition;
+        this.yPosition = initYPosition;
+        this.xVelocity = initXVelocity;
+        this.yVelocity = initYVelocity;
+        this.width = initWidth*initLength;
+        this.widthPerBlock = initWidth;
+        this.height = initHeight;
+        this.length = initLength;
+        if(hasPipe){
+            this.pipeLocation = Math.floor(Math.random()*this.length)
+        }
+        else{
+            this.pipeLocation = -1
+        }
+    }
+
+    move(){
+        this.xPosition += this.xVelocity;
+        this.yPosition += this.yVelocity;
+        // if(this.xPosition > CANVAS_WIDTH){
+        //     this.xPosition = CANVAS_WIDTH;
+        // }
+        // // if(this.xPosition < 0){
+        // //     this.xPosition = 0;
+        // // }
+        // if(this.yPosition > CANVAS_HEIGHT){
+        //     this.yPosition = CANVAS_HEIGHT;
+        // }
+        // if(this.yPosition < 0){
+        //     this.yPosition = 0;
+        // }
+    }
+
+    draw(){
         for(let i = 0; i < this.length; i++){
-            image(BRICK_IMAGE,this.xPosition+i*this.width,this.yPosition,this.width,this.height);
+            image(BRICK_IMAGE,this.xPosition+i*this.widthPerBlock,this.yPosition,this.widthPerBlock,this.height);
+            if(i==this.pipeLocation){
+                image(PIPE_IMAGE,this.xPosition+i*this.widthPerBlock,this.yPosition-this.height,this.widthPerBlock,this.height);
+            }
         }
     }
 
@@ -222,12 +429,15 @@ class PlatformObject{
     }
 }
 
+/**
+ * Class for the Mario object
+ */
 class MarioObject{
 
     constructor(initXPosition,initYPosition,initWidth,initHeight){
         this.xPosition = initXPosition;
         this.yPosition = initYPosition;
-        this.xSpeed = 3;
+        this.xSpeed = 8;
         this.xVelocity = 0;
         this.yVelocity = 1;
         this.ySpeed = 1;
@@ -237,6 +447,7 @@ class MarioObject{
         this.direction = 0;
         this.facing = 1;
         this.jumpSpeed = 20
+        this.isJumping = true;
     }
 
     move(direction){
@@ -251,16 +462,26 @@ class MarioObject{
         this.yVelocity += this.yAcceleration;
         this.yPosition += this.yVelocity;
         if(this.yPosition > CANVAS_HEIGHT-this.height){
-            this.yPosition = CANVAS_HEIGHT-this.height;
-            this.yVelocity = 0
-        }
-        if(this.yPosition < 0){
             this.yPosition = 0;
             this.yVelocity = 0;
+            if(this.yAcceleration>0){
+                points *= .9
+            } else {
+                points /= .9
+            }
+        }
+        if(this.yPosition < 0){
+            this.yPosition = CANVAS_HEIGHT-this.height;
+            this.yVelocity = 0;
+            if(this.yAcceleration<0){
+                points *= .9
+            } else {
+                points /= .9
+            }
         }
         // X
         this.xVelocity = this.xSpeed * this.direction;
-        this.xPosition += this.xVelocity;
+        this.xPosition += this.xVelocity - 5;
         if(this.xPosition > CANVAS_WIDTH-this.width){
             this.xPosition = CANVAS_WIDTH-this.width;
         }
@@ -271,30 +492,43 @@ class MarioObject{
 
     jump(){
         this.yVelocity -= this.jumpSpeed;
+        this.yPosition--;
+        this.isJumping = true;
     }
 
-
+    invertGravity(){
+        if(!this.isJumping){
+            this.yAcceleration *= -1
+            this.jumpSpeed *= -1
+            this.yPosition -= this.height*2*Math.sign(this.yAcceleration)
+        }
+    }
 
     draw(){
+        let jumpImage = MARIO_JUMPING_IMAGE
+        let standImage = MARIO_STANDING_IMAGE
+        if(this.yAcceleration<0){
+            jumpImage = MARIO_JUMPING_INVERTED_IMAGE
+            standImage = MARIO_STANDING_INVERTED_IMAGE   
+        }
         if(this.facing < 0){
             translate(width,0);
             scale(-1,1)
             if(this.yVelocity<0){
-                image(MARIO_JUMPING_IMAGE,CANVAS_WIDTH-this.xPosition-this.width,this.yPosition,this.width,this.height);
+                image(jumpImage,CANVAS_WIDTH-this.xPosition-this.width,this.yPosition,this.width,this.height);
             }
             else{
-                image(MARIO_STANDING_IMAGE,CANVAS_WIDTH-this.xPosition-this.width,this.yPosition,this.width,this.height);
-                
+                image(standImage,CANVAS_WIDTH-this.xPosition-this.width,this.yPosition,this.width,this.height);
             }
             translate(0,0);
             scale(1,1)
         }
         else{
             if(this.yVelocity<0){
-                image(MARIO_JUMPING_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+                image(jumpImage,this.xPosition,this.yPosition,this.width,this.height);
             }
             else{
-                image(MARIO_STANDING_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+                image(standImage,this.xPosition,this.yPosition,this.width,this.height);
             }
         }
     }
