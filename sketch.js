@@ -84,7 +84,6 @@ function keyPressed() {
     if(keyCode == 82){ // R-Key
         restart()
     }
-    console.log(keyCode)
 }
 
 function restart(){
@@ -446,7 +445,11 @@ class Goomba{
 
     draw(){
         if(!this.isDead){
-            image(GOOMBA_1_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+            if(counter%30<15){
+                image(GOOMBA_1_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+            } else {
+                image(GOOMBA_2_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+            }
         } else {
             image(GOOMBA_DEAD_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
         }
