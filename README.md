@@ -1,4 +1,3 @@
-# Stock Visuals
-
-
 # mariodata
+
+A CSV of Nintendo stock data is converted into blocks for Mario to jump around on. The controls for Mario are arrow keys to move and jump. Space reverses gravity. And R resets the game. If the next block is higher (stock went up) you make money proportional to the increase. Likewise if it goes down you lose money. This can be reversed (similar to shorting a stock) by pressing space bar which flips Mario to the other side of the blocks. There are also Goombas which can be killed by jumping on their heads. Hitting their sides will result in Mario being knocked back which can make him fall through the map. If Mario falls he loses 10% of his money so avoid that.

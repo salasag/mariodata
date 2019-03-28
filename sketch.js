@@ -24,8 +24,8 @@ let FONT;
 let newGoomba = false;
 
 function setup(){
-    CANVAS_HEIGHT = windowHeight;
-    CANVAS_WIDTH  = windowWidth;
+    CANVAS_HEIGHT = windowHeight-1;
+    CANVAS_WIDTH  = windowWidth-150;
     cnv = createCanvas(CANVAS_WIDTH,CANVAS_HEIGHT);
     // SCENE_MANAGER = new SCENE_MANAGER();
     // SCENE_MANAGER.addScene( Animation1 )
@@ -206,6 +206,7 @@ function drawObjects(){
 
 /**
  * This ensures that Mario can't fall through the screen
+ * Additionally handles Goomba hits
  */
 function handleCollisions(){
     let toDestroy = []
@@ -264,7 +265,7 @@ function handleCollisions(){
                     MARIO_OBJECT.yVelocity=0
                     MARIO_OBJECT.jump();
                     obj1.kill()
-                    points *= 1.01
+                    points *= 1.03
                     break;
                 }
                 case obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition:{
@@ -272,7 +273,7 @@ function handleCollisions(){
                     MARIO_OBJECT.yVelocity=0
                     MARIO_OBJECT.jump();
                     obj1.kill()
-                    points *= 1.01
+                    points *= 1.03
                     break;
                 }
                 default:{
