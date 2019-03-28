@@ -8,9 +8,11 @@ let clouds  = [];
 let goombas = [];
 let isMousePreviouslyPressed = false;
 let STOCK_DATA;
-let MARIO_STANDING_IMAGE;
+let MARIO_STANDING_1_IMAGE;
+let MARIO_STANDING_2_IMAGE;
 let MARIO_JUMPING_IMAGE;
-let MARIO_STANDING_INVERTED_IMAGE;
+let MARIO_STANDING_1_INVERTED_IMAGE;
+let MARIO_STANDING_2_INVERTED_IMAGE;
 let MARIO_JUMPING_INVERTED_IMAGE;
 let counter = 0;
 let MARIO_OBJECT;
@@ -58,9 +60,11 @@ function setup(){
 
 function preload(){
     STOCK_DATA = loadTable("data/NTDOY.csv","header")
-    MARIO_STANDING_IMAGE = loadImage("images/mario_standing.png")
+    MARIO_STANDING_1_IMAGE = loadImage("images/mario_standing1.png")
+    MARIO_STANDING_2_IMAGE = loadImage("images/mario_standing2.png")
     MARIO_JUMPING_IMAGE = loadImage("images/mario_jumping.png")
-    MARIO_STANDING_INVERTED_IMAGE = loadImage("images/mario_standing_inverted.png")
+    MARIO_STANDING_1_INVERTED_IMAGE = loadImage("images/mario_standing1_inverted.png")
+    MARIO_STANDING_2_INVERTED_IMAGE = loadImage("images/mario_standing2_inverted.png")
     MARIO_JUMPING_INVERTED_IMAGE = loadImage("images/mario_jumping_inverted.png")
     GOOMBA_1_IMAGE = loadImage("images/goomba1.png")
     GOOMBA_2_IMAGE = loadImage("images/goomba2.png")
@@ -582,6 +586,7 @@ class MarioObject{
         this.jumpSpeed = 20
         this.isJumping = true;
         this.hurtCount=0;
+        this.imageCount=0;
     }
 
     move(direction){
@@ -608,6 +613,9 @@ class MarioObject{
         // X
         if(this.hurtCount==0){
             this.xVelocity = this.xSpeed * this.direction;
+            if(this.direction != 0){
+                this.imageCount = (this.imageCount+1)%10000000
+            }
         }
         this.xPosition += this.xVelocity - 5;
         if(this.xPosition > CANVAS_WIDTH-this.width){
@@ -647,10 +655,19 @@ class MarioObject{
 
     draw(){
         let jumpImage = MARIO_JUMPING_IMAGE
-        let standImage = MARIO_STANDING_IMAGE
+        let standImage = MARIO_STANDING_1_IMAGE
+        if(this.imageCount%10<5){
+            standImage = MARIO_STANDING_1_IMAGE
+        } else {
+            standImage = MARIO_STANDING_2_IMAGE
+        }   
         if(this.yAcceleration<0){
             jumpImage = MARIO_JUMPING_INVERTED_IMAGE
-            standImage = MARIO_STANDING_INVERTED_IMAGE   
+            if(this.imageCount%10<5){
+                standImage = MARIO_STANDING_1_INVERTED_IMAGE
+            } else {
+                standImage = MARIO_STANDING_2_INVERTED_IMAGE
+            }   
         }
         if(this.facing < 0){
             translate(width,0);
