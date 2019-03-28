@@ -4,7 +4,8 @@ var CANVAS_HEIGHT = 800;
 var CANVAS_WIDTH  = 1600;
 let FPS = 60;
 let objects = [];
-let clouds = [];
+let clouds  = [];
+let goombas = [];
 let isMousePreviouslyPressed = false;
 let STOCK_DATA;
 let MARIO_STANDING_IMAGE;
@@ -20,6 +21,7 @@ let CSV_STEP = 10;
 let points = 100;
 let MAX_VALUE = 0;
 let FONT;
+let newGoomba = false;
 
 function setup(){
     CANVAS_HEIGHT = windowHeight;
@@ -37,13 +39,6 @@ function setup(){
     cursor(CROSS)
     fill(0);
     console.log(STOCK_DATA)
-    // let money = 100;
-    // for(let i = 10; i< STOCK_DATA.rows.length; i=i+10){
-    //     let percentIncrease = (STOCK_DATA.rows[i].obj.Open/STOCK_DATA.rows[Math.max(i-CSV_STEP,0)].obj.Open)
-    //     money = Math.max(percentIncrease*money,money/percentIncrease)
-    // }
-    // console.log(Math.pow(money,1/560))
-    // console.log(money)
 }
 
 // function Animation1(){
@@ -61,21 +56,15 @@ function setup(){
 //     }
 // }
 
-function keyPressed() {
-    if (keyCode === UP_ARROW && Math.abs(MARIO_OBJECT.yVelocity) < 2 && !MARIO_OBJECT.isJumping) {
-        MARIO_OBJECT.jump()
-    }
-    if(keyCode == 32){
-        MARIO_OBJECT.invertGravity()
-    }
-}
-
 function preload(){
     STOCK_DATA = loadTable("data/NTDOY.csv","header")
     MARIO_STANDING_IMAGE = loadImage("images/mario_standing.png")
     MARIO_JUMPING_IMAGE = loadImage("images/mario_jumping.png")
     MARIO_STANDING_INVERTED_IMAGE = loadImage("images/mario_standing_inverted.png")
     MARIO_JUMPING_INVERTED_IMAGE = loadImage("images/mario_jumping_inverted.png")
+    GOOMBA_1_IMAGE = loadImage("images/goomba1.png")
+    GOOMBA_2_IMAGE = loadImage("images/goomba2.png")
+    GOOMBA_DEAD_IMAGE = loadImage("images/goomba_dead.png")
     BRICK_IMAGE = loadImage("images/brick.png")
     PIPE_IMAGE = loadImage("images/pipe.png")
     CLOUD_SMALL_IMAGE = loadImage("images/cloud_small.png")
@@ -83,6 +72,31 @@ function preload(){
     SUN_IMAGE = loadImage("images/sun.png")
     LOGO_IMAGE = loadImage("images/nintendo_logo.png")
     FONT = loadFont("fonts/emulogic.ttf")
+}
+
+function keyPressed() {
+    if (keyCode === UP_ARROW && Math.abs(MARIO_OBJECT.yVelocity) < 2 && !MARIO_OBJECT.isJumping) {
+        MARIO_OBJECT.jump()
+    }
+    if(keyCode == 32 && Math.abs(MARIO_OBJECT.yVelocity) < 2 && !MARIO_OBJECT.isJumping){ // SPACEBAR
+        MARIO_OBJECT.invertGravity()
+    }
+    if(keyCode == 82){ // R-Key
+        restart()
+    }
+    console.log(keyCode)
+}
+
+function restart(){
+    objects = []
+    clouds  = []
+    goombas = []
+    counter = 0;
+    CSV_INDEX = 0;
+    TRANSLATION=0;
+    points = 100;
+    newGoomba = false;
+    setupObjects();
 }
 
 function setupObjects(){
@@ -120,6 +134,11 @@ function generateObjects(){
             MARIO_OBJECT.yPosition = CANVAS_HEIGHT-size-height-MARIO_OBJECT.height
         }
         objects.push(new PlatformObject(CANVAS_WIDTH,CANVAS_HEIGHT-size-height,-5,0,size,size,3,Math.random()<.2))
+        newGoomba = false
+        if(Math.random()<.2 && objects.length!=1){
+            goombas.push(new Goomba(CANVAS_WIDTH,CANVAS_HEIGHT-2*size-height,3,0,size,size,size*3,-5))
+            newGoomba = true
+        }
         incrementCSVIndex();
     }
     let translationIncrement = Math.max(.1*Math.abs(TRANSLATION),4)
@@ -131,6 +150,11 @@ function generateObjects(){
     }
     for(let i = 0; i < objects.length-1; i++){
         objects[i].yPosition+=translationIncrement;
+    }
+    for(let i = 0; i < goombas.length; i++){
+        if(!(i == goombas.length-1 && newGoomba)){
+            goombas[i].yPosition+=translationIncrement;
+        }
     }
     MARIO_OBJECT.yPosition+=translationIncrement;
     TRANSLATION-=translationIncrement;
@@ -166,8 +190,15 @@ function drawObjects(){
         currentObject.move();
         currentObject.draw();
     });
-    if(objects[0].xPosition==0-50*3){
+    goombas.map(currentObject => {
+        currentObject.move();
+        currentObject.draw();
+    });
+    if(objects[0].xPosition<0-50*3){
         objects.splice(0,1)
+    }
+    if(goombas.length!=0 && goombas[0].xPosition<0-50){
+        goombas.splice(0,1)
     }
     MARIO_OBJECT.draw()
     MARIO_OBJECT.update()
@@ -191,16 +222,57 @@ function handleCollisions(){
                     MARIO_OBJECT.xPosition=obj1.xPosition+obj1.width;
                     break;
                 }
+                case MARIO_OBJECT.yPosition+MARIO_OBJECT.height-obj1.yPosition:{ // TOP Hit
+                    MARIO_OBJECT.yPosition=obj1.yPosition-MARIO_OBJECT.height;
+                    if(MARIO_OBJECT.yAcceleration>0){
+                        MARIO_OBJECT.yVelocity=0
+                        MARIO_OBJECT.isJumping=false;
+                    }
+                    break;
+                }
+                case obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition:{
+                    MARIO_OBJECT.yPosition=obj1.yPosition+obj1.height;
+                    if(MARIO_OBJECT.yAcceleration<0){
+                        MARIO_OBJECT.yVelocity=0
+                        MARIO_OBJECT.isJumping=false;
+                    }
+                    break;
+                }
+                default:{
+
+                }
+            }
+        }
+    });
+    goombas.map((obj1,index) => {
+        if(isCollisionRectangle(MARIO_OBJECT.xPosition, MARIO_OBJECT.width, MARIO_OBJECT.yPosition, MARIO_OBJECT.height,
+                                obj1.xPosition,         obj1.width,         obj1.yPosition,         obj1.height) && MARIO_OBJECT.yAcceleration > 0){
+            switch(Math.min(MARIO_OBJECT.xPosition+MARIO_OBJECT.width -obj1.xPosition,obj1.xPosition+obj1.width -MARIO_OBJECT.xPosition,
+                            MARIO_OBJECT.yPosition+MARIO_OBJECT.height-obj1.yPosition,obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition)){
+                case MARIO_OBJECT.xPosition+MARIO_OBJECT.width-obj1.xPosition:{
+                    MARIO_OBJECT.xPosition=obj1.xPosition-MARIO_OBJECT.width;
+                    MARIO_OBJECT.hurt("left")
+                    break;
+                }
+                case obj1.xPosition+obj1.width -MARIO_OBJECT.xPosition:{
+                    MARIO_OBJECT.xPosition=obj1.xPosition+obj1.width;
+                    MARIO_OBJECT.hurt("right")
+                    break;
+                }
                 case MARIO_OBJECT.yPosition+MARIO_OBJECT.height-obj1.yPosition:{
                     MARIO_OBJECT.yPosition=obj1.yPosition-MARIO_OBJECT.height;
                     MARIO_OBJECT.yVelocity=0
-                    MARIO_OBJECT.isJumping=false;
+                    MARIO_OBJECT.jump();
+                    obj1.kill()
+                    points *= 1.01
                     break;
                 }
                 case obj1.yPosition+obj1.height-MARIO_OBJECT.yPosition:{
                     MARIO_OBJECT.yPosition=obj1.yPosition+obj1.height;
                     MARIO_OBJECT.yVelocity=0
-                    MARIO_OBJECT.isJumping=false;
+                    MARIO_OBJECT.jump();
+                    obj1.kill()
+                    points *= 1.01
                     break;
                 }
                 default:{
@@ -333,6 +405,63 @@ class PhysicsObject{
     }
 }
 
+
+/**
+ * Goomba objects
+ */
+class Goomba{
+
+    constructor(initXPosition,initYPosition,initXVelocity,initYVelocity,initWidth,initHeight,initPlatformWidth,initPlatformVelocity){
+        this.xPosition = initXPosition;
+        this.leftBound = initXPosition;
+        this.rightBound = initXPosition + initPlatformWidth-initWidth;
+        this.yPosition = initYPosition;
+        this.xVelocity = initXVelocity;
+        this.yVelocity = initYVelocity;
+        this.xAcceleration = 0;
+        this.yAcceleration = 0;
+        this.width = initWidth;
+        this.height = initHeight;
+        this.isDead = false;
+        this.platformVelocity = initPlatformVelocity
+    }
+
+    move(){
+        this.xVelocity += this.xAcceleration;
+        this.xPosition += this.xVelocity + this.platformVelocity;
+        this.yVelocity += this.yAcceleration;
+        this.yPosition += this.yVelocity;
+        this.leftBound  += this.platformVelocity
+        this.rightBound += this.platformVelocity
+        if(this.xPosition > this.rightBound && !this.isDead){
+            this.xPosition = this.rightBound;
+            this.xVelocity *= -1;
+        }
+        if(this.xPosition < this.leftBound && !this.isDead){
+            this.xPosition = this.leftBound;
+            this.xVelocity *= -1;
+        }
+    }
+
+    draw(){
+        if(!this.isDead){
+            image(GOOMBA_1_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+        } else {
+            image(GOOMBA_DEAD_IMAGE,this.xPosition,this.yPosition,this.width,this.height);
+        }
+    }
+
+    kill(){
+        this.yVelocity = -10
+        this.yAcceleration = .5
+        this.isDead = true
+    }
+
+    onClick(){
+        this.direction = !this.direction;
+    }
+}
+
 /**
  * Class for background clouds
  */
@@ -448,6 +577,7 @@ class MarioObject{
         this.facing = 1;
         this.jumpSpeed = 20
         this.isJumping = true;
+        this.hurtCount=0;
     }
 
     move(direction){
@@ -461,26 +591,20 @@ class MarioObject{
         // Y
         this.yVelocity += this.yAcceleration;
         this.yPosition += this.yVelocity;
-        if(this.yPosition > CANVAS_HEIGHT-this.height){
+        if(this.yPosition > CANVAS_HEIGHT-this.height && this.yAcceleration>0){
             this.yPosition = 0;
             this.yVelocity = 0;
-            if(this.yAcceleration>0){
-                points *= .9
-            } else {
-                points /= .9
-            }
+            points *= .9
         }
-        if(this.yPosition < 0){
+        if(this.yPosition < 0 && this.yAcceleration<0){
             this.yPosition = CANVAS_HEIGHT-this.height;
             this.yVelocity = 0;
-            if(this.yAcceleration<0){
-                points *= .9
-            } else {
-                points /= .9
-            }
+            points *= .9
         }
         // X
-        this.xVelocity = this.xSpeed * this.direction;
+        if(this.hurtCount==0){
+            this.xVelocity = this.xSpeed * this.direction;
+        }
         this.xPosition += this.xVelocity - 5;
         if(this.xPosition > CANVAS_WIDTH-this.width){
             this.xPosition = CANVAS_WIDTH-this.width;
@@ -488,12 +612,25 @@ class MarioObject{
         if(this.xPosition < 0){
             this.xPosition = 0;
         }
+        this.hurtCount = Math.max(this.hurtCount-1,0)
     }
 
     jump(){
         this.yVelocity -= this.jumpSpeed;
         this.yPosition--;
         this.isJumping = true;
+    }
+
+    hurt(direction){
+        if(direction=="left"){
+            this.yVelocity = -this.jumpSpeed/2
+            this.xVelocity = -this.jumpSpeed/2
+        } else {
+            this.yVelocity = -this.jumpSpeed/2
+            this.xVelocity = this.jumpSpeed/2
+        }
+        this.hurtCount = 30 // Frames hurt for
+        this.isJumping == true;
     }
 
     invertGravity(){
@@ -524,7 +661,7 @@ class MarioObject{
             scale(1,1)
         }
         else{
-            if(this.yVelocity<0){
+            if(Math.sign(this.yVelocity)!=Math.sign(this.yAcceleration) && this.yVelocity != 0){
                 image(jumpImage,this.xPosition,this.yPosition,this.width,this.height);
             }
             else{
