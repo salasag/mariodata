@@ -25,7 +25,7 @@ let newGoomba = false;
 
 function setup(){
     CANVAS_HEIGHT = windowHeight-1;
-    CANVAS_WIDTH  = windowWidth-150;
+    CANVAS_WIDTH  = windowWidth-250;
     cnv = createCanvas(CANVAS_WIDTH,CANVAS_HEIGHT);
     // SCENE_MANAGER = new SCENE_MANAGER();
     // SCENE_MANAGER.addScene( Animation1 )
